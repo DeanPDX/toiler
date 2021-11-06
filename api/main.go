@@ -1,0 +1,35 @@
+package main
+
+import (
+	"fmt"
+	"log"
+	"net/http"
+)
+
+func main() {
+	// Handle initialization
+	readConfig()
+	initializeDB(globalConfig.Database)
+	defer closeDB()
+
+	// Set up routes
+	http.HandleFunc("/api/createAccount", createAccount)
+	http.HandleFunc("/api/authenticate", authenticate)
+	http.Handle("/api/tasks/list", mustBeAuthenticated(http.HandlerFunc(listTasks)))
+	http.Handle("/api/tasks/add", mustBeAuthenticated(http.HandlerFunc(addTask)))
+	http.Handle("/api/tasks/update", mustBeAuthenticated(http.HandlerFunc(updateTaskStatus)))
+
+	// Listen and serve content
+	fmt.Println("\nListening on port", globalConfig.Port)
+	log.Fatal(http.ListenAndServe(globalConfig.Port, nil))
+}
+
+func mustBeAuthenticated(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Auth") == "" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
