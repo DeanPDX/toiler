@@ -8,8 +8,8 @@ import (
 
 func main() {
 	// Handle initialization
-	readConfig()
-	initializeDB(globalConfig.Database)
+	setupConfig()
+	initializeDB(globalConfig.DSN)
 	defer closeDB()
 
 	// Set up routes
@@ -18,10 +18,11 @@ func main() {
 	http.Handle("/api/tasks/list", mustBeAuthenticated(http.HandlerFunc(listTasks)))
 	http.Handle("/api/tasks/add", mustBeAuthenticated(http.HandlerFunc(addTask)))
 	http.Handle("/api/tasks/update", mustBeAuthenticated(http.HandlerFunc(updateTaskStatus)))
+	http.Handle("/", http.FileServer(http.Dir("./public")))
 
 	// Listen and serve content
 	fmt.Println("\nListening on port", globalConfig.Port)
-	log.Fatal(http.ListenAndServe(globalConfig.Port, nil))
+	log.Fatal(http.ListenAndServe(":"+globalConfig.Port, nil))
 }
 
 func mustBeAuthenticated(next http.Handler) http.Handler {

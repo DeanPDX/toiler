@@ -1,5 +1,5 @@
 { 
-    "database": "postgres://username:password@localhost:5432/database_name",
+    "dsn": "postgres://username:password@localhost:5432/database_name",
     "signingSecret": "SomeCoolJWTSigningSecret",
-    "port": ":8090"
+    "port": "8090"
 }
