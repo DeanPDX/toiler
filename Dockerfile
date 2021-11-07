@@ -40,5 +40,5 @@ COPY --from=build-web /build ./public
 COPY /database/migrations ./database/migrations
 # Expose port 8080
 # EXPOSE 8080
-USER nonroot:nonroot
+# USER nonroot:nonroot
 ENTRYPOINT ["/toiler-web"]

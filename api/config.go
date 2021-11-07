@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 )
 
 // AppConfig stores our app's configuration.
@@ -40,11 +39,6 @@ func readConfigFile() AppConfig {
 }
 
 func getEnvironmentVars() AppConfig {
-	for _, e := range os.Environ() {
-		pair := strings.SplitN(e, "=", 2)
-		fmt.Println(pair[0], ":", pair[1])
-	}
-
 	fmt.Println("Reading environment variables")
 	// Create struct and populate it with environment variables.
 	config := AppConfig{}
