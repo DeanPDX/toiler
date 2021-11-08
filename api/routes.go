@@ -131,6 +131,23 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(healthCheckHTML))
 }
 
+func healthCheckJSON(w http.ResponseWriter, r *http.Request) {
+	items := make([]string, 0)
+	err := filepath.Walk(".",
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			items = append(items, path)
+			return nil
+		})
+	if err != nil {
+		log.Println(err)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(items)
+}
+
 // List a users' tasks
 func listTasks(w http.ResponseWriter, r *http.Request) {
 	data := getTasks()
