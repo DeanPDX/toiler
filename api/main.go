@@ -15,6 +15,7 @@ func main() {
 	// Set up routes
 	http.HandleFunc("/api/createAccount", createAccount)
 	http.HandleFunc("/api/authenticate", authenticate)
+	http.HandleFunc("/health", healthCheck)
 	http.Handle("/api/tasks/list", mustBeAuthenticated(http.HandlerFunc(listTasks)))
 	http.Handle("/api/tasks/add", mustBeAuthenticated(http.HandlerFunc(addTask)))
 	http.Handle("/api/tasks/update", mustBeAuthenticated(http.HandlerFunc(updateTaskStatus)))

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -95,6 +97,38 @@ func authenticate(w http.ResponseWriter, r *http.Request) {
 		result.Success = true
 		result.Token = ss
 	}
+}
+
+func healthCheck(w http.ResponseWriter, r *http.Request) {
+	items := ""
+	err := filepath.Walk(".",
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			items += fmt.Sprintf("<li>%v</li>", path)
+			//fmt.Println(path, info.Size())
+			return nil
+		})
+	if err != nil {
+		log.Println(err)
+	}
+
+	healthCheckHTML := fmt.Sprintf(`<!DOCTYPE html>
+	<html>
+	<head>
+	</head>
+	<body>
+	  <h1>App Health Check</h1>
+	  <p>The app is working</p>
+	  <p>Files:</p>
+	  <ul>
+	  %v
+	  </ul>
+	</body>
+	</html>`, items)
+	w.Header().Set("Content-Type", "text/html")
+	w.Write([]byte(healthCheckHTML))
 }
 
 // List a users' tasks
