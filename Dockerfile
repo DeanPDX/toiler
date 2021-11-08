@@ -4,7 +4,7 @@
 ## Build Web
 ##
 FROM node:lts AS build-web
-WORKDIR /
+WORKDIR /web
 # Copy our preact app
 COPY /web ./
 # Install NPM packages including preact-cli
@@ -16,31 +16,29 @@ RUN npm run build
 ## Build API
 ##
 FROM golang:latest AS build-api
-WORKDIR /
+WORKDIR /api
 # Copy go module configuration
 COPY go.mod ./
 COPY go.sum ./
 # Copy over our API
-COPY /api ./
+COPY /api ./api
 # Download go modules
 RUN go mod download
 # Build our package 
-RUN go build -o /toiler-web
+RUN go build -o ./toiler-web github.com/DeanPDX/toiler/api
 
 ##
 ## Deploy
 ##
 FROM gcr.io/distroless/base
-WORKDIR /
+WORKDIR /app
 # Copy our binary
-COPY --from=build-api /toiler-web ./toiler-web
+COPY --from=build-api api/toiler-web ./toiler-web
 # Copy our built preact app
-COPY --from=build-web /build ./public
+COPY --from=build-web web/build ./public
 # Copy our db migrations
 COPY /database/migrations ./database/migrations
-# Temp troubleshooting step
-RUN ls -R
 # Expose port 8080
 # EXPOSE 8080
 # USER nonroot:nonroot
-ENTRYPOINT ["/toiler-web"]
+ENTRYPOINT ["./toiler-web"]
