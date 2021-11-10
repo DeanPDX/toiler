@@ -16,9 +16,9 @@ type TaskItem struct {
 	CompletedAt *time.Time `json:"completedAt"`
 }
 
-func getTasks() []TaskItem {
+func getTasks(userID int) []TaskItem {
 	tasks := make([]TaskItem, 0, 10)
-	rows, err := dbPool.Query(context.Background(), `select id,user_id,title,created_at,completed_at from tasks order by completed_at desc, created_at desc;`)
+	rows, err := dbPool.Query(context.Background(), `select id,user_id,title,created_at,completed_at from tasks where user_id = $1 order by completed_at desc, created_at desc;`, userID)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -30,8 +30,8 @@ func getTasks() []TaskItem {
 	return tasks
 }
 
-func insertTask(taskName string) error {
-	_, err := dbPool.Exec(context.Background(), `insert into tasks(user_id, title, created_at) values ($1, $2, $3);`, 1, taskName, time.Now())
+func insertTask(taskName string, userID int) error {
+	_, err := dbPool.Exec(context.Background(), `insert into tasks(user_id, title, created_at) values ($1, $2, $3);`, userID, taskName, time.Now())
 	return err
 }
 
