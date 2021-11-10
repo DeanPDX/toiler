@@ -12,11 +12,6 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
-type JWTClaims struct {
-	UserID    int `json:"userID"`
-	ExpiresAt time.Time
-	jwt.StandardClaims
-}
 type auth struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -150,7 +145,13 @@ func healthCheckJSON(w http.ResponseWriter, r *http.Request) {
 
 // List a users' tasks
 func listTasks(w http.ResponseWriter, r *http.Request) {
-	data := getTasks()
+	// TODO: handle errors
+	jwt, err := parseToken(r.Header.Get("X-Auth"))
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+	fmt.Println(jwt)
+	data := getTasks(jwt.UserID)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
 }
@@ -163,7 +164,11 @@ func addTask(w http.ResponseWriter, r *http.Request) {
 	var payload newTask
 	json.NewDecoder(r.Body).Decode(&payload)
 	w.Header().Set("Content-Type", "application/json")
-	if err := insertTask(payload.TaskName); err != nil {
+	jwt, err := parseToken(r.Header.Get("X-Auth"))
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+	if err := insertTask(payload.TaskName, jwt.UserID); err != nil {
 		json.NewEncoder(w).Encode(false)
 		return
 	}
