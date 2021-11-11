@@ -35,13 +35,13 @@ func insertTask(taskName string, userID int) error {
 	return err
 }
 
-func updateTask(taskID int64, completed bool) error {
+func updateTask(taskID int64, userID int, completed bool) error {
 	var completedAt *time.Time
 	if completed == true {
 		now := time.Now()
 		completedAt = &now
 	}
-	_, err := dbPool.Exec(context.Background(), `update tasks set completed_at = $1 where id = $2;`, completedAt, taskID)
+	_, err := dbPool.Exec(context.Background(), `update tasks set completed_at = $1 where id = $2 and user_id = $3;`, completedAt, taskID, userID)
 	return err
 }
 
