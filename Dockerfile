@@ -38,7 +38,4 @@ COPY --from=build-api api/toiler-web ./toiler-web
 COPY --from=build-web web/build ./public
 # Copy our db migrations
 COPY /database/migrations ./database/migrations
-# Expose port 8080
-# EXPOSE 8080
-# USER nonroot:nonroot
 ENTRYPOINT ["./toiler-web"]

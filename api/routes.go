@@ -3,16 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
-
-	jwt "github.com/dgrijalva/jwt-go"
 )
 
-type auth struct {
+type credentials struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
@@ -26,7 +22,7 @@ func createAccount(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	defer json.NewEncoder(w).Encode(&result)
 
-	var creds auth
+	var creds credentials
 	json.NewDecoder(r.Body).Decode(&creds)
 
 	// If no credentials, bail.
@@ -41,28 +37,23 @@ func createAccount(w http.ResponseWriter, r *http.Request) {
 	if user.ID != 0 {
 		return
 	}
+
 	// Hash password and create new record
 	hash, err := HashPassword(creds.Password)
 	if err != nil {
-		fmt.Println(err)
+		writeError(w, err.Error())
 		return
 	}
 	insertUser(creds.Email, hash)
 	user = getUserByEmail(creds.Email)
-	// Create the Claims for our new user.
-	claims := JWTClaims{
-		user.ID,
-		time.Now().Add(48 * time.Hour),
-		jwt.StandardClaims{},
-	}
-	// Create token
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	ss, err := token.SignedString([]byte(globalConfig.SigningSecret))
+	// Generate our token
+	signedString, err := generateToken(user.ID)
 	if err != nil {
-		log.Fatal(err)
+		writeError(w, err.Error())
+		return
 	}
 	result.Success = true
-	result.Token = ss
+	result.Token = signedString
 }
 
 func authenticate(w http.ResponseWriter, r *http.Request) {
@@ -70,27 +61,21 @@ func authenticate(w http.ResponseWriter, r *http.Request) {
 	result := authResult{Success: false}
 	defer json.NewEncoder(w).Encode(&result)
 
-	var creds auth
+	var creds credentials
 	json.NewDecoder(r.Body).Decode(&creds)
 	user := getUserByEmail(creds.Email)
 	if user.ID == 0 {
 		return
 	}
 	if CheckPasswordHash(creds.Password, user.PasswordHash) {
-		// Create the Claims
-		claims := JWTClaims{
-			user.ID,
-			time.Now().Add(48 * time.Hour),
-			jwt.StandardClaims{},
-		}
-
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-		ss, err := token.SignedString([]byte(globalConfig.SigningSecret))
+		// Generate our token
+		signedString, err := generateToken(user.ID)
 		if err != nil {
-			log.Fatal(err)
+			writeError(w, err.Error())
+			return
 		}
 		result.Success = true
-		result.Token = ss
+		result.Token = signedString
 	}
 }
 
@@ -102,11 +87,11 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 			items += fmt.Sprintf("<li>%v</li>", path)
-			//fmt.Println(path, info.Size())
 			return nil
 		})
 	if err != nil {
-		log.Println(err)
+		writeError(w, err.Error())
+		return
 	}
 
 	healthCheckHTML := fmt.Sprintf(`<!DOCTYPE html>
@@ -126,31 +111,13 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(healthCheckHTML))
 }
 
-func healthCheckJSON(w http.ResponseWriter, r *http.Request) {
-	items := make([]string, 0)
-	err := filepath.Walk(".",
-		func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			items = append(items, path)
-			return nil
-		})
-	if err != nil {
-		log.Println(err)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(items)
-}
-
 // List a users' tasks
 func listTasks(w http.ResponseWriter, r *http.Request) {
-	// TODO: handle errors
 	jwt, err := parseToken(r.Header.Get("X-Auth"))
 	if err != nil {
-		log.Fatalf(err.Error())
+		writeError(w, err.Error())
+		return
 	}
-	fmt.Println(jwt)
 	data := getTasks(jwt.UserID)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
@@ -158,18 +125,20 @@ func listTasks(w http.ResponseWriter, r *http.Request) {
 
 // Add a new task
 func addTask(w http.ResponseWriter, r *http.Request) {
+	jwt, err := parseToken(r.Header.Get("X-Auth"))
+	if err != nil {
+		writeError(w, err.Error())
+		return
+	}
 	type newTask struct {
 		TaskName string `json:"taskName"`
 	}
 	var payload newTask
 	json.NewDecoder(r.Body).Decode(&payload)
 	w.Header().Set("Content-Type", "application/json")
-	jwt, err := parseToken(r.Header.Get("X-Auth"))
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
+
 	if err := insertTask(payload.TaskName, jwt.UserID); err != nil {
-		json.NewEncoder(w).Encode(false)
+		writeError(w, err.Error())
 		return
 	}
 	json.NewEncoder(w).Encode(true)
@@ -177,6 +146,11 @@ func addTask(w http.ResponseWriter, r *http.Request) {
 
 // Update completed column for a given task
 func updateTaskStatus(w http.ResponseWriter, r *http.Request) {
+	jwt, err := parseToken(r.Header.Get("X-Auth"))
+	if err != nil {
+		writeError(w, err.Error())
+		return
+	}
 	type taskID struct {
 		TaskID    int64 `json:"taskID"`
 		Completed bool  `json:"completed"`
@@ -184,10 +158,14 @@ func updateTaskStatus(w http.ResponseWriter, r *http.Request) {
 	var payload taskID
 	json.NewDecoder(r.Body).Decode(&payload)
 	w.Header().Set("Content-Type", "application/json")
-	if err := updateTask(payload.TaskID, payload.Completed); err != nil {
-		log.Fatal(err)
-		json.NewEncoder(w).Encode(false)
+	if err := updateTask(payload.TaskID, jwt.UserID, payload.Completed); err != nil {
+		writeError(w, err.Error())
 		return
 	}
 	json.NewEncoder(w).Encode(true)
+}
+
+func writeError(w http.ResponseWriter, errorMessage string) {
+	w.WriteHeader(http.StatusInternalServerError)
+	w.Write([]byte(errorMessage))
 }
