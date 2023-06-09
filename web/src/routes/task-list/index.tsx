@@ -26,6 +26,7 @@ class TaskList extends Component<{}, TaskState> {
         return (
             <div>
                 <h1>Tasks</h1>
+                <button onClick={this.downloadTasks}>Download Tasks</button>
                 {!this.state.initialLoad ? <div class={style.loading}></div> : results}
                 <form onSubmit={this.submitTask}>
                     <input type="text" placeholder="New task" value={this.state.newTaskName} onInput={this.taskNameChanged} autoFocus={true}></input>
@@ -82,6 +83,28 @@ class TaskList extends Component<{}, TaskState> {
                 this.refreshTaskList()
             }, 200);
         });
+    }
+
+    downloadTasks = () => {
+        this.api.getTaskListExcel().then(res => {
+            const url = window.URL.createObjectURL(res);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'tasks.xlsx');
+            document.body.appendChild(link);
+            link.click();
+        }).catch(err => {
+            console.log(err);
+        });
+        /*
+        
+        const url = window.URL.createObjectURL(new Blob([res.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'tasks.xlsx');
+        document.body.appendChild(link);
+        link.click();
+        */
     }
 }
 

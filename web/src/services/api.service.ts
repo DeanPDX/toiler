@@ -72,6 +72,15 @@ export class APIService {
         return this.get<Task[]>(`${this.baseURL}/tasks/list`)
     }
 
+    getTaskListExcel() {
+        return fetch('/api/tasks/excel', {
+          headers: {
+            'X-Auth': SessionService.getAuthToken(),
+          },
+        })
+          .then(res => res.blob())
+      }
+
     /**
      * Create a new task and return true for success.
      * @param taskName The name of the new task

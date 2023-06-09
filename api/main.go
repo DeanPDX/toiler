@@ -18,6 +18,7 @@ func main() {
 	http.HandleFunc("/api/authenticate", authenticate)
 	http.HandleFunc("/health", healthCheck)
 	http.Handle("/api/tasks/list", mustBeAuthenticated(http.HandlerFunc(listTasks)))
+	http.Handle("/api/tasks/excel", mustBeAuthenticated(http.HandlerFunc(listTasksExcel)))
 	http.Handle("/api/tasks/add", mustBeAuthenticated(http.HandlerFunc(addTask)))
 	http.Handle("/api/tasks/update", mustBeAuthenticated(http.HandlerFunc(updateTaskStatus)))
 	http.Handle("/", http.FileServer(http.Dir("./public")))
