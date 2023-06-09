@@ -96,15 +96,6 @@ class TaskList extends Component<{}, TaskState> {
         }).catch(err => {
             console.log(err);
         });
-        /*
-        
-        const url = window.URL.createObjectURL(new Blob([res.data]));
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', 'tasks.xlsx');
-        document.body.appendChild(link);
-        link.click();
-        */
     }
 }
 
