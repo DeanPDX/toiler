@@ -18,7 +18,7 @@ type TaskItem struct {
 
 func getTasks(userID int) []TaskItem {
 	tasks := make([]TaskItem, 0, 10)
-	rows, err := dbPool.Query(context.Background(), `select id,user_id,title,created_at,completed_at from tasks where user_id = $1 order by completed_at desc, created_at desc;`, userID)
+	rows, err := dbPool.Query(context.Background(), `select id,user_id,title,created_at,completed_at from tasks where user_id = $1 order by completed_at asc nulls first, created_at asc;`, userID)
 	if err != nil {
 		log.Fatal(err)
 	}

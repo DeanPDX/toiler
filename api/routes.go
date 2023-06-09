@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
+
+	"github.com/xuri/excelize/v2"
 )
 
 type credentials struct {
@@ -121,6 +124,72 @@ func listTasks(w http.ResponseWriter, r *http.Request) {
 	data := getTasks(jwt.UserID)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
+}
+
+func completed(v *time.Time) string {
+	if v != nil {
+		return "Yes"
+	}
+	return "No"
+}
+func completedAt(v *time.Time) string {
+	if v != nil {
+		return v.Format("2006-01-02-15:04:05")
+	}
+	return ""
+}
+
+// List a users' tasks and export to Excel
+func listTasksExcel(w http.ResponseWriter, r *http.Request) {
+	jwt, err := parseToken(r.Header.Get("X-Auth"))
+	if err != nil {
+		writeError(w, err.Error())
+		return
+	}
+	data := getTasks(jwt.UserID)
+
+	// Create a new Excel file
+	f := excelize.NewFile()
+
+	// Set the sheet name
+	sheetName := "Tasks"
+	f.SetSheetName("Sheet1", sheetName)
+	if err != nil {
+		writeError(w, err.Error())
+		return
+	}
+
+	// Set the column headers
+	headers := []string{"ID", "Task Name", "Completed?", "Completed At"}
+	for i, header := range headers {
+		f.SetCellValue(sheetName, fmt.Sprintf("%c%d", 'A'+i, 1), header)
+	}
+
+	// Set the data rows
+	for i, task := range data {
+		f.SetCellValue(sheetName, fmt.Sprintf("A%d", i+2), task.ID)
+		f.SetCellValue(sheetName, fmt.Sprintf("B%d", i+2), task.Title)
+		f.SetCellValue(sheetName, fmt.Sprintf("C%d", i+2), completedAt(task.CompletedAt))
+		f.SetCellValue(sheetName, fmt.Sprintf("D%d", i+2), completed(task.CompletedAt))
+	}
+
+	// Set the column widths
+	f.SetColWidth(sheetName, "A", "A", 10)
+	f.SetColWidth(sheetName, "B", "B", 40)
+	f.SetColWidth(sheetName, "C", "C", 10)
+	f.SetColWidth(sheetName, "D", "D", 10)
+
+	// Set the file name and headers
+	fileName := "tasks.xlsx"
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", fileName))
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+	// Write the file to the response
+	err = f.Write(w)
+	if err != nil {
+		writeError(w, err.Error())
+		return
+	}
 }
 
 // Add a new task
